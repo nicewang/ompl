@@ -164,10 +164,12 @@ class ompl_base_generator_t(code_generator_t):
             f'map< {self.string_decl}, std::shared_ptr< ompl::base::ProjectionEvaluator > >').rename(
                 'mapStringToProjectionEvaluator')
         self.std_ns.class_('vector< ompl::base::State * >').rename('vectorState')
+
         try:
             self.std_ns.class_('vector< ompl::base::State const* >').rename('vectorConstState')
         except declaration_not_found_t:
             pass
+
         self.std_ns.class_('vector< std::shared_ptr<ompl::base::StateSpace> >').rename(
             'vectorStateSpacePtr')
         #self.std_ns.class_('vector< <ompl::base::PlannerSolution> >').rename(
@@ -177,6 +179,9 @@ class ompl_base_generator_t(code_generator_t):
         self.std_ns.class_(f'map< {self.string_decl}, ompl::base::StateSpace::SubstateLocation >').rename(
             'mapStringToSubstateLocation')
         self.std_ns.class_('vector<ompl::base::PlannerSolution>').rename('vectorPlannerSolution')
+
+        self.std_ns.class_('vector< ompl::base::ConditionalStateSampler::Motion * >').rename(
+            'vectorConditionalStateSamplerMotionPtr')
 
         pairStateDouble = self.std_ns.class_('pair<ompl::base::State *, double>')
         pairStateDouble.rename('pairStateDouble')
@@ -327,16 +332,28 @@ class ompl_base_generator_t(code_generator_t):
                 'ConstrainedStateSpace').class_('StateType'), 'double')
             # \todo: figure why commented-out code causes a problem.
             self.ompl_ns.class_('ConstraintIntersection').exclude()
+
+            signatures = ['::Eigen::Ref<const Eigen::Matrix<double, -1, 1, 0, -1, 1>, 0, Eigen::InnerStride<1> > const &',
+                          '::Eigen::Ref<const Eigen::Matrix<double, -1, 1, 0>, 0, Eigen::InnerStride<1>> const &']
+
             for cls in [self.ompl_ns.class_('Constraint')]: #,
 #                        self.ompl_ns.class_('ConstraintIntersection')]:
                 for method in ['function', 'jacobian']:
-                    cls.member_function(method, arg_types=[
-                        '::Eigen::Ref<const Eigen::Matrix<double, -1, 1, 0>, 0, Eigen::InnerStride<1>> const &',
-                        None]).add_transformation(FT.input(0))
+                    for signature in signatures:
+                        try:
+                            cls.member_function(method, arg_types=[signature, None]).add_transformation(FT.input(0))
+                        except Exception as e:
+                            pass
+
             cls = self.ompl_ns.class_('Constraint')
             for method in ['distance', 'isSatisfied']:
-                cls.member_function(method, arg_types=[
-                    '::Eigen::Ref<const Eigen::Matrix<double, -1, 1, 0>, 0, Eigen::InnerStride<1>> const &',]).add_transformation(FT.input(0))
+
+                for signature in signatures:
+                    try:
+                        cls.member_function(method, arg_types=[signature]).add_transformation(FT.input(0))
+                    except Exception as e:
+                        pass
+
         except Exception as e:
             pass
 

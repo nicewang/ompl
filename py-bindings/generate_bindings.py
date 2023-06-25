@@ -154,10 +154,11 @@ class ompl_base_generator_t(code_generator_t):
         code_generator_t.__init__(self, 'base', ['bindings/util'], replacement)
 
     def filter_declarations(self):
-        # force ProblemDefinition to be included, because it is used by other modules
+        # force classes to be included, because it is used by other modules
         self.ompl_ns.class_('ProblemDefinition').include()
-        # force the abstract base class Path to be included, because it is used by other modules
         self.ompl_ns.class_('Path').include()
+        self.ompl_ns.class_('PlannerSolution').include()
+
         code_generator_t.filter_declarations(self)
         # rename STL vectors of certain types
         self.std_ns.class_(
@@ -810,10 +811,10 @@ class ompl_geometric_generator_t(code_generator_t):
         try:
             self.ompl_ns.class_('NearestNeighbors<unsigned long>').include()
             self.ompl_ns.class_('NearestNeighbors<unsigned long>').rename('NearestNeighbors')
-            self.ompl_ns.class_('NearestNeighborsLinear<unsigned long>').rename(
-                'NearestNeighborsLinear')
+            self.ompl_ns.class_('NearestNeighborsLinear<unsigned long>').rename('NearestNeighborsLinear')
             self.ompl_ns.class_('KStrategy<unsigned long>').rename('KStrategy')
             self.ompl_ns.class_('KStarStrategy<unsigned long>').rename('KStarStrategy')
+            self.ompl_ns.class_('KBoundedStrategy<unsigned long>').rename('KBoundedStrategy')
         except declaration_not_found_t:
             self.ompl_ns.class_('NearestNeighbors<unsigned int>').include()
             self.ompl_ns.class_('NearestNeighbors<unsigned int>').rename('NearestNeighbors')
@@ -821,6 +822,7 @@ class ompl_geometric_generator_t(code_generator_t):
                 'NearestNeighborsLinear')
             self.ompl_ns.class_('KStrategy<unsigned int>').rename('KStrategy')
             self.ompl_ns.class_('KStarStrategy<unsigned int>').rename('KStarStrategy')
+            self.ompl_ns.class_('KBoundedStrategy<unsigned int>').rename('KBoundedStrategy')
 
         try:
             # Exclude some functions from BIT* that cause some Py++ compilation problems

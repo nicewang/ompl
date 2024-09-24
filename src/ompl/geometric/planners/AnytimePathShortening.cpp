@@ -1,36 +1,36 @@
 /*********************************************************************
-* Software License Agreement (BSD License)
-*
-*  Copyright (c) 2014, Rice University
-*  All rights reserved.
-*
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-*
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above
-*     copyright notice, this list of conditions and the following
-*     disclaimer in the documentation and/or other materials provided
-*     with the distribution.
-*   * Neither the name of the Rice University nor the names of its
-*     contributors may be used to endorse or promote products derived
-*     from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-*  POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************/
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2014, Rice University
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Rice University nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************/
 
 /* Author: Ryan Luna */
 
@@ -210,7 +210,12 @@ ompl::geometric::AnytimePathShortening::solve(const ompl::base::PlannerTerminati
         thread.join();
 
     msg::setLogLevel(currentLogLevel);
-    return pdef_->getSolutionCount() > 0 ? base::PlannerStatus::EXACT_SOLUTION : base::PlannerStatus::UNKNOWN;
+    base::PlannerStatus::StatusType status = base::PlannerStatus::UNKNOWN;
+    if (invalidStartStateCount_ > 0)
+        status = base::PlannerStatus::INVALID_START;
+    else if (invalidGoalCount_ > 0)
+        status = base::PlannerStatus::INVALID_GOAL;
+    return (pdef_->getSolutionCount() > 0) ? base::PlannerStatus::EXACT_SOLUTION : status;
 }
 
 void ompl::geometric::AnytimePathShortening::threadSolve(base::Planner *planner,
@@ -223,13 +228,34 @@ void ompl::geometric::AnytimePathShortening::threadSolve(base::Planner *planner,
     planner->setProblemDefinition(pdef);
     while (!ptc)
     {
-        if (planner->solve(ptc) == base::PlannerStatus::EXACT_SOLUTION)
+        const base::PlannerStatus &status = planner->solve(ptc);
+        if (status == base::PlannerStatus::EXACT_SOLUTION)
         {
             geometric::PathGeometric *sln = static_cast<geometric::PathGeometric *>(pdef->getSolutionPath().get());
             auto pathCopy(std::make_shared<geometric::PathGeometric>(*sln));
             if (shortcut_)  // Shortcut the path
-                ps.shortcutPath(*pathCopy);
+                ps.partialShortcutPath(*pathCopy);
             addPath(pathCopy, planner);
+        }
+        else if ((status == base::PlannerStatus::INVALID_START)
+                || (status == base::PlannerStatus::INVALID_GOAL)
+                || (status == base::PlannerStatus::UNRECOGNIZED_GOAL_TYPE))
+        {
+            // there is not point in trying again with these error types that will repeat.
+            {
+                std::lock_guard<std::mutex> _(invalidStartOrGoalLock_);
+                if (status == base::PlannerStatus::INVALID_START)
+                {
+                    ++invalidStartStateCount_;
+                }
+                else if (status == base::PlannerStatus::INVALID_GOAL)
+                {
+                    ++invalidGoalCount_;
+                }
+            }
+            planner->clear();
+            pdef->clearSolutionPaths();
+            break;
         }
 
         planner->clear();
@@ -243,6 +269,8 @@ void ompl::geometric::AnytimePathShortening::clear()
     for (auto &planner : planners_)
         planner->clear();
     bestCost_ = base::Cost(std::numeric_limits<double>::quiet_NaN());
+    invalidStartStateCount_ = 0;
+    invalidGoalCount_ = 0;
 }
 
 void ompl::geometric::AnytimePathShortening::getPlannerData(ompl::base::PlannerData &data) const

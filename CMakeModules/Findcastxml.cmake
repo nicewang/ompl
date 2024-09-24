@@ -7,24 +7,8 @@ endif()
 if (CASTXML)
     set(CASTXMLCFLAGS "-std=c++17 -fsized-deallocation $ENV{CASTXMLCFLAGS}")
 
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(CASTXMLCOMPILER "g++")
-    else()
-        if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-            set(CASTXMLCOMPILER "clang++")
-        else()
-            if (MSVC)
-                set(CASTXMLCOMPILER "msvc8")
-            endif()
-        endif()
-    endif()
-
-    # workaround for problem between Xcode and castxml on Mojave
-    if (APPLE AND CMAKE_CXX_COMPILER MATCHES "/Applications/Xcode.app/Contents/Developer/Toolchains/.*")
-        set(CASTXMLCOMPILER_PATH "/usr/bin/clang++")
-    else()
-        set(CASTXMLCOMPILER_PATH "${CMAKE_CXX_COMPILER}")
-    endif()
+    set(CASTXMLCOMPILER "${CMAKE_CXX_COMPILER_ID}")
+    set(CASTXMLCOMPILER_PATH "${CMAKE_CXX_COMPILER}")
 
     set(CASTXMLCONFIG "[xml_generator]
 xml_generator=castxml
@@ -34,8 +18,8 @@ compiler_path=${CASTXMLCOMPILER_PATH}
 ")
 
     set(_candidate_include_path
-        "${OMPL_INCLUDE_DIRS}"
-        "${OMPLAPP_INCLUDE_DIRS}"
+        "${CMAKE_SOURCE_DIR}/src"
+        "${CMAKE_SOURCE_DIR}/ompl/src"
         "${PYTHON_INCLUDE_DIRS}"
         "${Boost_INCLUDE_DIR}"
         "${ASSIMP_INCLUDE_DIRS}"
@@ -53,6 +37,20 @@ compiler_path=${CASTXMLCOMPILER_PATH}
             "${_path}/lib/gcc/mingw32/${_version}/include/c++"
             "${_path}/lib/gcc/mingw32/${_version}/include/c++/mingw32")
     endif()
+
+    if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "arm64")
+      # Some shell magic to extract out the default includes that are NOT included in castxml by default.
+      # Note there may be some issue with the `cut` if a path has spaces, hopefully not since these are system includes
+      execute_process(COMMAND bash "-c" "${CASTXMLCOMPILER} -E -x c++ - -v < /dev/null 2>&1 | awk '/#include <...> search starts here:/{flag=1;next}/End of search list./{flag=0}flag' - | cut -f 2 -d' ' - | paste -sd\; -"
+        OUTPUT_VARIABLE _system_include_paths OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+      # Append those default includes
+      list(APPEND _candidate_include_path ${_system_include_paths})
+
+      # Some issues with ARM Neon intrinsics breaking in the castxml parse step, ignore in this part
+      set(CASTXMLCFLAGS "${CASTXMLCFLAGS} -DEIGEN_DONT_VECTORIZE")
+    endif()
+
     list(REMOVE_DUPLICATES _candidate_include_path)
     set(CASTXMLINCLUDEPATH ".")
     foreach(dir ${_candidate_include_path})

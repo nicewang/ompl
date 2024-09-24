@@ -57,9 +57,6 @@ namespace ompl
             A.M. Shkel and V. Lumelsky, “Classification of the Dubins set,”
             Robotics and Autonomous Systems, 34(4):179-202, 2001.
             DOI: <a href="http://dx.doi.org/10.1016/S0921-8890(00)00127-5">10.1016/S0921-8890(00)00127-5</a>
-
-            The classification scheme described there is not actually used,
-            since it only applies to “long” paths.
             */
         class DubinsStateSpace : public SE2StateSpace
         {
@@ -71,6 +68,7 @@ namespace ompl
                 DUBINS_STRAIGHT = 1,
                 DUBINS_RIGHT = 2
             };
+
             /** \brief Dubins path types */
             static const DubinsPathSegmentType dubinsPathType[6][3];
             /** \brief Complete description of a Dubins path */

@@ -1,6 +1,12 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.12)
 project(ompl VERSION 1.6.0 LANGUAGES CXX)
 set(OMPL_ABI_VERSION 17)
+
+# Use the FindBoost provided by CMake, rather than the one provided by Boost
+# (for CMake >=3.30).
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.30")
+    cmake_policy(SET CMP0167 OLD)
+endif()
 
 # set the default build type
 if (NOT CMAKE_BUILD_TYPE)
@@ -15,8 +21,7 @@ endif()
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-set(CMAKE_MODULE_PATH
-    "${CMAKE_MODULE_PATH}"
+list(APPEND CMAKE_MODULE_PATH
     "${CMAKE_ROOT_DIR}/cmake/Modules"
     "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 include(GNUInstallDirs)
@@ -24,16 +29,10 @@ include(FeatureSummary)
 include(CompilerSettings)
 include(OMPLUtils)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
-
 set(OMPL_CMAKE_UTIL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules"
     CACHE FILEPATH "Path to directory with auxiliary CMake scripts for OMPL")
-set(OMPL_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src;${CMAKE_CURRENT_BINARY_DIR}/src")
 set(OMPL_DEMO_INSTALL_DIR "${CMAKE_INSTALL_DATAROOTDIR}/ompl/demos"
     CACHE STRING "Relative path to directory where demos will be installed")
-
-include_directories("${OMPL_INCLUDE_DIRS}")
 
 if(MSVC)
     add_definitions(-DBOOST_ALL_NO_LIB)
@@ -108,25 +107,19 @@ set_package_properties(Eigen3 PROPERTIES
     URL "http://eigen.tuxfamily.org"
     PURPOSE "A linear algebra library used throughout OMPL.")
 find_package(Eigen3 REQUIRED)
-include_directories(SYSTEM "${EIGEN3_INCLUDE_DIR}")
 
 set_package_properties(Triangle PROPERTIES
     URL "http://www.cs.cmu.edu/~quake/triangle.html"
     PURPOSE "Used to create triangular decompositions of polygonal 2D environments.")
 find_package(Triangle QUIET)
 set(OMPL_EXTENSION_TRIANGLE ${TRIANGLE_FOUND})
-if (OMPL_EXTENSION_TRIANGLE)
-  include_directories(SYSTEM ${TRIANGLE_INCLUDE_DIR})
-endif()
 
 set_package_properties(flann PROPERTIES
     URL "https://github.com/mariusmuja/flann"
     PURPOSE "If detetected, FLANN can be used for nearest neighbor queries by OMPL.")
-find_package(flann 1.8.3 QUIET)
+find_package(flann CONFIG 1.9.2 QUIET)
 if (FLANN_FOUND)
     set(OMPL_HAVE_FLANN 1)
-    include_directories(SYSTEM ${FLANN_INCLUDE_DIRS})
-    link_directories(${FLANN_LIBRARY_DIRS})
 endif()
 
 set_package_properties(spot PROPERTIES
@@ -135,8 +128,6 @@ set_package_properties(spot PROPERTIES
 find_package(spot)
 if (spot_FOUND)
     set(OMPL_HAVE_SPOT 1)
-    include_directories(SYSTEM "${SPOT_INCLUDE_DIRS}")
-    link_directories(${SPOT_LIBRARY_DIRS})
 endif()
 
 set_package_properties(Doxygen PROPERTIES
@@ -170,7 +161,7 @@ if(NOT MSVC)
     target_link_flags(ompl)
     set(PKG_NAME "ompl")
     set(PKG_DESC "The Open Motion Planning Library")
-    set(PKG_EXTERNAL_DEPS "eigen3 ${ompl_PKG_DEPS}")
+    set(PKG_EXTERNAL_DEPS "Eigen3::Eigen ${ompl_PKG_DEPS}")
     set(PKG_OMPL_LIBS "-lompl ${ompl_LINK_FLAGS}")
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/ompl.pc.in"
                    "${CMAKE_CURRENT_BINARY_DIR}/ompl.pc" @ONLY)
@@ -196,6 +187,19 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/omplConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/omplConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/ompl/cmake
     COMPONENT ompl)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/ompl/cmake
+    COMPONENT ompl
+    FILES_MATCHING PATTERN "Find*.cmake")
+install(TARGETS ompl
+    EXPORT omplExport
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT ompl)
+install(EXPORT omplExport
+    NAMESPACE ompl::
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/ompl/cmake)
+export(EXPORT omplExport
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/omplExport.cmake")
 
 # script to install ompl on Ubuntu
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/install-ompl-ubuntu.sh.in"
@@ -218,7 +222,8 @@ if (OMPL_REGISTRATION)
         file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/.registered" "")
         find_package(Python QUIET)
         if (PYTHON_FOUND)
-            execute_process(COMMAND "${PYTHON_EXEC}" "-m" "webbrowser" "https://ompl.kavrakilab.org/core/register.html"
+            execute_process(COMMAND ${CMAKE_COMMAND} -E env
+               TERM="" "${PYTHON_EXEC}" "-m" "webbrowser" "https://ompl.kavrakilab.org/core/register.html"
                 OUTPUT_QUIET ERROR_QUIET)
         endif()
     endif()

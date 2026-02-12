@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import re
@@ -57,10 +57,12 @@ class CMakeBuild(build_ext):
             f"-DPYTHON_LIBRARIES={get_paths()['stdlib']}",
             f"-DCMAKE_BUILD_TYPE={cfg}",  # not used on MSVC, but no harm
             "-DOMPL_BUILD_PYBINDINGS=ON",
-            "-DOMPL_REGISTRATION=OFF",
             "-DOMPL_BUILD_DEMOS=OFF",
             "-DOMPL_BUILD_PYTESTS=OFF",
             "-DOMPL_BUILD_TESTS=OFF",
+            "-DOMPL_BUILD_VAMP=OFF",
+            "-DVAMP_PORTABLE_BUILD=OFF",
+            "-DVAMP_BUILD_PYTHON_BINDINGS=OFF",
         ]
         build_args = []
         # Adding CMake arguments set as environment variable
@@ -108,7 +110,7 @@ class CMakeBuild(build_ext):
 
         if sys.platform.startswith("darwin"):
             # TODO: Move this out to configuration
-            cmake_args += ["-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0"]
+            cmake_args += ["-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0"]
 
             # Cross-compile support for macOS - respect ARCHFLAGS if set
             archs = re.findall(r"-arch (\S+)", os.environ.get("ARCHFLAGS", ""))
@@ -150,7 +152,7 @@ class CMakeBuild(build_ext):
 
 setup(
     name="ompl",
-    version="1.6.0",
+    version="1.7.0",
     description="The Open Motion Planning Library",
     author="Ioan A. Șucan, Mark Moll, Zachary Kingston, Lydia E. Kavraki",
     author_email="zak@rice.edu",

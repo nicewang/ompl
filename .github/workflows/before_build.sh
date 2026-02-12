@@ -3,33 +3,40 @@
 set -eux
 
 # Dependency versions.
-castxml_version="0.6.8" # version specifier for Linux only
-boost_version="1.86.0"
+yaml_cpp_version="0.8.0"
+castxml_version="0.6.11" # version specifier for Linux only
+boost_version="1.87.0"
 
 # Collect some information about the build target.
 build_os="$(uname)"
 python_version=$(python3 -c 'import sys; v=sys.version_info; print(f"{v.major}.{v.minor}")')
 
+install_yaml_cpp() {
+    curl -L "https://github.com/jbeder/yaml-cpp/archive/refs/tags/${yaml_cpp_version}.tar.gz" | tar xz
+
+    pushd "yaml-cpp-${yaml_cpp_version}"
+    mkdir -p mkdir
+    cmake -Bbuild -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release
+    cmake --build build --parallel
+    cmake --install build
+    popd
+}
+
 install_boost() {
     b2_args=("$@")
 
-    curl -L "https://boostorg.jfrog.io/artifactory/main/release/${boost_version}/source/boost_${boost_version//./_}.tar.bz2" | tar xj
+    curl -L "https://archives.boost.io/release/${boost_version}/source/boost_${boost_version//./_}.tar.bz2" | tar xj
     pushd "boost_${boost_version//./_}"
 
     # Tell boost-python the exact Python install to use, since we may have
     # multiple on the host system.
     python_include_path=$(python3 -c "from sysconfig import get_paths as gp; print(gp()['include'])")
     echo "using python : ${python_version} : : ${python_include_path} ;" > "$HOME/user-config.jam"
-
-    # TODO: As of boost-1.86.0, numpy>=2.0 is not supported.
-    # See: https://github.com/boostorg/python/issues/431
-    pip3 install "numpy<2.0"
+    pip3 install numpy
 
     ./bootstrap.sh
     sudo ./b2 "${b2_args[@]}" \
         --with-serialization \
-        --with-filesystem \
-        --with-system \
         --with-program_options \
         --with-python \
         install
@@ -43,10 +50,10 @@ install_castxml() {
     clang_resource_dir=$(clang -print-resource-dir)
 
     pushd "CastXML-${castxml_version}"
-    mkdir -p build && cd build
-    cmake -DCMAKE_BUILD_TYPE=Release -DCLANG_RESOURCE_DIR="${clang_resource_dir}" ..
-    cmake --build .
-    make install
+    mkdir -p build
+    cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCLANG_RESOURCE_DIR="${clang_resource_dir}"
+    cmake --build build --parallel
+    cmake --install build
     popd
 }
 
@@ -55,8 +62,9 @@ install_castxml() {
 cd "$(mktemp -d -t 'ompl-wheels.XXX')"
 
 if [ "${build_os}" == "Linux" ]; then
-    # Install CastXML dependency from source, since the manylinux container
-    # doesn't have a prebuilt version in the repos.
+    # Install yaml-cpp and CastXML dependencies from source, since the manylinux
+    # container doesn't have prebuilt versions in the repos.
+    install_yaml_cpp
     install_castxml
 
     # Install the latest Boost, because it has to be linked to the exact version of

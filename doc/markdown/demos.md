@@ -1,11 +1,8 @@
 # Demos {#demos}
 
-\defgroup demos Demos
-\ingroup demos
-@{
-
 - [Rigid body planning](RigidBodyPlanning_8cpp_source.html) [[Python version]](RigidBodyPlanning_8py_source.html). This demo is essentially the same example described in the first tutorial. It illustrates how to use the main classes.
 - [State sampling](StateSampling_8cpp_source.html) [[Python version]](StateSampling_8py_source.html). This is the demo program used in the last beginner tutorial.
+- **[VAMP Integration: Microsecond Motion Planning](vamp-ompl.html)**. This demo showcases the integration between VAMP (Vector-Accelerated Motion Planning) and OMPL, achieving motion planning in *microseconds* using SIMD-accelerated collision checking and forward kinematics. VAMP processes multiple robot configurations simultaneously using vectorized instructions, resulting in planning speeds up to 25 kHz. The demo supports popular robots (Panda, UR5, Fetch, Baxter), provide ways to extend to new robots and demonstrates both vectorized state validation and motion validation techniques. See the comprehensive [VAMP demo README](../../demos/Vamp/Readme.md) for detailed architecture overview, usage examples, and performance benchmarks.
 - [Analyze and visualize planner data in Python.](PlannerData_8py_source.html) This demo relies on the [graph-tool](https://graph-tool.skewed.de) package.
 - [Rigid body planning with controls](RigidBodyPlanningWithControls_8cpp_source.html) [[Python version]](RigidBodyPlanningWithControls_8py_source.html). This demo shows how to perform planning under differential constraints for a simple car-like vehicle.
 - [Rigid body planning with integration and controls.](RigidBodyPlanningWithIntegrationAndControls_8cpp_source.html) This example extends the previous example by showing how one can plan for systems of ordinary differential equations in a generic way. This example uses simple Euler integration. For higher accuracy it is recommended to use the ODESolver class described in the next demo.
@@ -22,6 +19,7 @@
 - [Rigid body planning with an Inverse Kinematics solver generating goal states in a separate thread.](RigidBodyPlanningWithIK_8cpp_source.html) This demo shows off two neat features of OMPL: a genetic algorithm-based Inverse Kinematics solver and a lazy goal state sampler. In a separate thread goal states are computed by the IK solver. While solving a motion planning problem, the planning algorithms select a random goal state from the ones computed so far.
 - [Random walk planner.](RandomWalkPlanner_8py_source.html) A simple demo illustrating how to create a new planning algorithm in Python. This particular planner simply performs a random walk until it gets close to the goal.
 - [Planning for Dubins and Reeds-Shepp cars.](GeometricCarPlanning_8cpp_source.html) This demo illustrates the use of the ompl::base::DubinsStateSpace and ompl::base::ReedsSheppStateSpace. The demo can solve two simple planning problems, print trajectories from the origin to a user-specified state, or print a discretized distance field.
+- [Planning for 3D Dubins models.](DubinsAirplane_8cpp_source.html) This demo illustrates the use of motion models that are often used for UAVs and UUVs.
 - [Optimal planning for a 2D point robot.](OptimalPlanning_8cpp_source.html) [[Python version]](OptimalPlanning_8py_source.html). This demo illustrates the use of `ompl::base::OptimizationObjective` to construct optimization objectives for optimal motion planning.
 - [Hypercube benchmark.](HypercubeBenchmark_8cpp_source.html) A simple benchmark where the configuration space consists of a hypercube in R<sup>n</sup> and the free space is a narrow corridor along edges of the hypercube. The exploration progress of a planner is therefore hard to capture in a low-dimensional projection.
 - [Kinematic chain benchmark.](KinematicChainBenchmark_8cpp_source.html) A benchmark for an _n_-link kinematic chain to get out of a narrow passage. It requires the chain to fold up and expand again. As in the previous benchmark, the free space is hard to capture by a low-dimensional projection of the configuration space.
